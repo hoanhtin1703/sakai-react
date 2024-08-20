@@ -5,12 +5,11 @@ import { useRouter,useSearchParams  } from 'next/navigation';
 import { HocPhanRespone } from '@/app/components/HocPhanRespone';
 import { LopHocPhanRespone } from '@/app/components/LopHocPhanRespone';
 import { DanhSachSinhVienRespone } from '@/app/components/DanhSachSinhVienRespone';
+import SkeletonOverlay from '@/app/components/skeleton/SkeletonOverlay';
 
 const Khoa = ({ params }: { params: { keyId: string, sku?: string[] } }) => {
 
     const sku = params.sku || 'hoc-phan'; // Giá trị mặc định nếu không có sku
-    const searchParams = useSearchParams()
-    console.log(searchParams.toString())
     const [currentComponent, setCurrentComponent] = useState<JSX.Element | null>(null);
     useEffect(() => {
         if (sku.includes('hoc-phan')) {

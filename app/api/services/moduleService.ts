@@ -1,22 +1,26 @@
 
 import { callGetRequest, callPostRequest } from './apiService';
 
-
-export async function importDanhMucHocPhan(file: File): Promise<{ fileKey: string, filename: string }> {
+export async function importDanhMucHocPhan(file: File): Promise<{ fileKey: string; filename: string }> {
     const formData = new FormData();
     formData.append('file', file);
+    try {
+        const response = await fetch('http://127.0.0.1:8000/import-danh-muc-hoc-phan', {
+            method: 'POST',
+            body: formData
+        });
 
-    const result = await callPostRequest('import-danh-muc-hoc-phan', formData, {
-        headers: {
-            'Content-Type': 'multipart/form-data'
+        if (!response.ok) {
+            const errorText = await response.text();
+            console.error(`Error: ${response.status}, ${errorText}`);
+            throw new Error('Failed to import file');
         }
-    });
 
-    if (result.status === 200) {
-        return result.response;
-    } else {
-        console.error(`Error: ${result.status}`);
-        throw new Error('Failed to import file');
+        const result = await response.json();
+        return result;
+    } catch (error) {
+        console.error('Import failed:', error);
+        throw error;
     }
 }
 

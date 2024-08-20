@@ -8,18 +8,61 @@ import Link from 'next/link';
 import { AppMenuItem } from '@/types';
 import { useSelector, useDispatch } from 'react-redux'
 import { RootState } from '@/app/lib/store';
-import { getKhoaSinhVien,KhoaSinhVien } from '@/app/api/services/moduleService';
+import { getKhoaSinhVien,KhoaSinhVien,importDanhMucHocPhan } from '@/app/api/services/moduleService';
 import { setBreadcrumbs,addBreadcrumb,clearBreadcrumbs,addBreadcrumbIfNotExists } from '@/app/redux/slice/breadcrumbSlice';
+import { ProgressSpinner } from 'primereact/progressspinner';
+import { Skeleton } from 'primereact/skeleton';
 const AppMenu = () => {
     const { layoutConfig } = useContext(LayoutContext);
     const breadcrumbs = useSelector((state: RootState) => state.breadcrumb)
     const dispatch = useDispatch()
     const [khoaSinhViens, setKhoaSinhViens] = useState<KhoaSinhVien[]>([]);
-
+    const [loading, setLoading] = useState(false);
+    const [showKhoaSinhViens, setShowKhoaSinhViens] = useState(false);
     const handleAddBreadcrumb = (label:string,sku:string) => {
         const newBreadcrumb = { label: label, command: () => console.log(`Navigating to ${sku} `) }
         dispatch(addBreadcrumbIfNotExists(newBreadcrumb))
       }
+      const handleImportClick = async () => {
+        try {
+            const input = document.createElement('input');
+            input.type = 'file';
+            input.accept = '.xlsx,.xls';
+            input.onchange = async (event) => {
+                const file = (event.target as HTMLInputElement).files?.[0];
+                if (file) {
+                    const filename = file.name;
+                    const regex = /KHOA\s\d{2}_HK\S*\sNH\s\d{4}-\d{4}/i;
+
+                    if (!regex.test(filename)) {
+                        console.error('Invalid file name format');
+                        alert('Tên file phải chứa "KHOA", "HKII", và niên khoá (ví dụ: "2023-2024"). Vui lòng thử lại.');
+                        return;
+                    }
+
+                    setLoading(true);
+                    try {
+                        await importDanhMucHocPhan(file);
+                        console.log('Import successful');
+                        // Cập nhật danh sách khóa sinh viên sau khi import thành công
+                        const data = await getKhoaSinhVien();
+                        if (data) {
+                            setKhoaSinhViens(data.data);
+                            setShowKhoaSinhViens(true);
+                        }
+                    } catch (error) {
+                        console.error('Import failed:', error);
+                    } finally {
+                        setLoading(false);
+                    }
+                }
+            };
+            input.click();
+        } catch (error) {
+            console.error('An error occurred:', error);
+        }
+    };
+
     useEffect(() => {
         // Fetch danh sách khoa sinh viên
         async function fetchKhoaSinhViens() {
@@ -28,9 +71,6 @@ const AppMenu = () => {
                 if(data) {
                 setKhoaSinhViens(data.data);
                 }
-                // setKhoaSinhViens(data.data);
-
-                // setFileDetails(data.data.map(item => ({ filename: item.Url_hoc_phan })));
             } catch (error) {
                 console.error('Failed to fetch Khoa Sinh Vien data:', error);
             }
@@ -43,171 +83,24 @@ const AppMenu = () => {
             items: [{ label: 'Dashboard', icon: 'pi pi-fw pi-home', to: '/' }]
         },
         {
+            label: 'Import File Excel',
+            items: [
+                {
+                    label: 'Import',
+                    icon: 'pi pi-fw pi-upload',
+                    command: () => handleImportClick()
+                }
+            ]
+        },
+        ...(showKhoaSinhViens ? [{
             label: 'DANH SÁCH KHÓA SINH VIÊN',
             items: khoaSinhViens.map((item, index) => ({
-                label: `${item.Khoa} - ${item.Hoc_ky}`,
+                label: `${item.Khoa} - ${item.Hoc_ky}(${item.Nam_hoc})`,
                 icon: 'pi pi-fw pi-id-card',
                 to: `/pages/Khoa/${item.Url_hoc_phan}/hoc-phan`,
-                command: () => handleAddBreadcrumb(`${item.Khoa} - ${item.Hoc_ky}`,item.Url_hoc_phan)
+                command: () => handleAddBreadcrumb(`${item.Khoa} - ${item.Hoc_ky}`, item.Url_hoc_phan)
             }))
-        },
-        {
-            label: 'UI Components',
-            items: [
-                { label: 'Form Layout', icon: 'pi pi-fw pi-id-card', to: '/uikit/formlayout' },
-                { label: 'KHOA 20', icon: 'pi pi-fw pi-id-card', to: '/pages/Khoa/default' },
-                { label: 'kHOA 21', icon: 'pi pi-fw pi-id-card', to: '/pages/Khoa/1' },
-                { label: 'KHOA 22', icon: 'pi pi-fw pi-id-card', to: '/pages/Khoa/2' },
-                { label: 'Input', icon: 'pi pi-fw pi-check-square', to: '/uikit/input' },
-                { label: 'Float Label', icon: 'pi pi-fw pi-bookmark', to: '/uikit/floatlabel' },
-                { label: 'Invalid State', icon: 'pi pi-fw pi-exclamation-circle', to: '/uikit/invalidstate' },
-                { label: 'Button', icon: 'pi pi-fw pi-mobile', to: '/uikit/button', class: 'rotated-icon' },
-                { label: 'Table', icon: 'pi pi-fw pi-table', to: '/uikit/table' },
-                { label: 'List', icon: 'pi pi-fw pi-list', to: '/uikit/list' },
-                { label: 'Tree', icon: 'pi pi-fw pi-share-alt', to: '/uikit/tree' },
-                { label: 'Panel', icon: 'pi pi-fw pi-tablet', to: '/uikit/panel' },
-                { label: 'Overlay', icon: 'pi pi-fw pi-clone', to: '/uikit/overlay' },
-                { label: 'Media', icon: 'pi pi-fw pi-image', to: '/uikit/media' },
-                { label: 'Menu', icon: 'pi pi-fw pi-bars', to: '/uikit/menu', preventExact: true },
-                { label: 'Message', icon: 'pi pi-fw pi-comment', to: '/uikit/message' },
-                { label: 'File', icon: 'pi pi-fw pi-file', to: '/uikit/file' },
-                { label: 'Chart', icon: 'pi pi-fw pi-chart-bar', to: '/uikit/charts' },
-                { label: 'Misc', icon: 'pi pi-fw pi-circle', to: '/uikit/misc' }
-            ]
-        },
-        {
-            label: 'Prime Blocks',
-            items: [
-                { label: 'Free Blocks', icon: 'pi pi-fw pi-eye', to: '/blocks', badge: 'NEW' },
-                { label: 'All Blocks', icon: 'pi pi-fw pi-globe', url: 'https://blocks.primereact.org', target: '_blank' }
-            ]
-        },
-        {
-            label: 'Utilities',
-            items: [
-                { label: 'PrimeIcons', icon: 'pi pi-fw pi-prime', to: '/utilities/icons' },
-                { label: 'PrimeFlex', icon: 'pi pi-fw pi-desktop', url: 'https://primeflex.org/', target: '_blank' }
-            ]
-        },
-        {
-            label: 'Pages',
-            icon: 'pi pi-fw pi-briefcase',
-            to: '/pages',
-            items: [
-                {
-                    label: 'Landing',
-                    icon: 'pi pi-fw pi-globe',
-                    to: '/landing'
-                },
-                {
-                    label: 'Auth',
-                    icon: 'pi pi-fw pi-user',
-                    items: [
-                        {
-                            label: 'Login',
-                            icon: 'pi pi-fw pi-sign-in',
-                            to: '/auth/login'
-                        },
-                        {
-                            label: 'Error',
-                            icon: 'pi pi-fw pi-times-circle',
-                            to: '/auth/error'
-                        },
-                        {
-                            label: 'Access Denied',
-                            icon: 'pi pi-fw pi-lock',
-                            to: '/auth/access'
-                        }
-                    ]
-                },
-                {
-                    label: 'Crud',
-                    icon: 'pi pi-fw pi-pencil',
-                    to: '/pages/crud'
-                },
-                {
-                    label: 'Timeline',
-                    icon: 'pi pi-fw pi-calendar',
-                    to: '/pages/timeline'
-                },
-                {
-                    label: 'Not Found',
-                    icon: 'pi pi-fw pi-exclamation-circle',
-                    to: '/pages/notfound'
-                },
-                {
-                    label: 'Empty',
-                    icon: 'pi pi-fw pi-circle-off',
-                    to: '/pages/empty'
-                }
-            ]
-        },
-        {
-            label: 'Hierarchy',
-            items: [
-                {
-                    label: 'Submenu 1',
-                    icon: 'pi pi-fw pi-bookmark',
-                    items: [
-                        {
-                            label: 'Submenu 1.1',
-                            icon: 'pi pi-fw pi-bookmark',
-                            items: [
-                                { label: 'Submenu 1.1.1', icon: 'pi pi-fw pi-bookmark' },
-                                { label: 'Submenu 1.1.2', icon: 'pi pi-fw pi-bookmark' },
-                                { label: 'Submenu 1.1.3', icon: 'pi pi-fw pi-bookmark' }
-                            ]
-                        },
-                        {
-                            label: 'Submenu 1.2',
-                            icon: 'pi pi-fw pi-bookmark',
-                            items: [{ label: 'Submenu 1.2.1', icon: 'pi pi-fw pi-bookmark' }]
-                        }
-                    ]
-                },
-                {
-                    label: 'Submenu 2',
-                    icon: 'pi pi-fw pi-bookmark',
-                    items: [
-                        {
-                            label: 'Submenu 2.1',
-                            icon: 'pi pi-fw pi-bookmark',
-                            items: [
-                                { label: 'Submenu 2.1.1', icon: 'pi pi-fw pi-bookmark' },
-                                { label: 'Submenu 2.1.2', icon: 'pi pi-fw pi-bookmark' }
-                            ]
-                        },
-                        {
-                            label: 'Submenu 2.2',
-                            icon: 'pi pi-fw pi-bookmark',
-                            items: [{ label: 'Submenu 2.2.1', icon: 'pi pi-fw pi-bookmark' }]
-                        }
-                    ]
-                }
-            ]
-        },
-        {
-            label: 'Get Started',
-            items: [
-                {
-                    label: 'Documentation',
-                    icon: 'pi pi-fw pi-question',
-                    to: '/documentation'
-                },
-                {
-                    label: 'Figma',
-                    url: 'https://www.dropbox.com/scl/fi/bhfwymnk8wu0g5530ceas/sakai-2023.fig?rlkey=u0c8n6xgn44db9t4zkd1brr3l&dl=0',
-                    icon: 'pi pi-fw pi-pencil',
-                    target: '_blank'
-                },
-                {
-                    label: 'View Source',
-                    icon: 'pi pi-fw pi-search',
-                    url: 'https://github.com/primefaces/sakai-react',
-                    target: '_blank'
-                }
-            ]
-        }
+        }] : [])
     ];
 
     return (
@@ -217,10 +110,19 @@ const AppMenu = () => {
                     return !item?.seperator ? <AppMenuitem item={item} root={true} index={i} key={item.label} /> : <li className="menu-separator"></li>;
                 })}
 
-                {/* <Link href="https://blocks.primereact.org" target="_blank" style={{ cursor: 'pointer' }}>
-                    <img alt="Prime Blocks" className="w-full mt-3" src={`/layout/images/banner-primeblocks${layoutConfig.colorScheme === 'light' ? '' : '-dark'}.png`} />
-                </Link> */}
             </ul>
+
+            {loading &&
+            <>
+            <div className='mt-2'>
+
+             <Skeleton width="100%"  className="mb-2"></Skeleton>
+             <Skeleton width="100%"  className="mb-2"></Skeleton>
+             <Skeleton width="100%"  className="mb-2"></Skeleton>
+            </div>
+            </>
+                }
+
         </MenuProvider>
     );
 };
